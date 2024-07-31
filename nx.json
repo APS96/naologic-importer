@@ -24,18 +24,12 @@
         "previewTargetName": "preview"
       }
     },
-    {
-      "plugin": "@nx/eslint/plugin",
-      "options": {
-        "targetName": "lint"
-      }
-    },
+    { "plugin": "@nx/eslint/plugin", "options": { "targetName": "lint" } },
     {
       "plugin": "@nx/jest/plugin",
-      "options": {
-        "targetName": "test"
-      },
+      "options": { "targetName": "test" },
       "exclude": ["apps/naologic-importer-e2e/**/*"]
     }
-  ]
+  ],
+  "nxCloudAccessToken": "NWZjYmM4MmEtNzA1ZC00MjIyLWFhNzAtMzJkYTYwODhlODA5fHJlYWQtd3JpdGU="
 }
