@@ -63,7 +63,8 @@ export class AppController {
     @Query('file-name') fileName: string,
     @Body() body: {targetHeader: string, targetHeaderType:string,inputHeader: string}[]
   ){
-    return this.appService.mapDocumentPreview(fileName, body);
+    const result = await this.appService.mapDocumentPreview(fileName, body);
+    return result;
   }
 
   @Post('validate-documents')
@@ -76,7 +77,8 @@ export class AppController {
   ) {
     const page = parseInt(currentPage, 10) || 1;
     const size = parseInt(pageSize, 10) || 10;
-    return this.appService.validateDocuments(fileName, page, size, body);
+    const result = await this.appService.validateDocuments(fileName, page, size, body);
+    return result;
   }
 }
 

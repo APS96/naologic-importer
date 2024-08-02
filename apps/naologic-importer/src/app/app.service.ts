@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { S3Service } from 'aws/src/lib/s3.service';
 import { getCountryISO3 } from "country-iso-2-to-3";
 import * as lodash from 'lodash';
 import moment from 'moment';
 import { v4 as uuid } from 'uuid';
 import * as XLSX from 'xlsx';
-import { accountSchema, calculateAllKeys } from '../utills/account';
+import { accountSchema, calculateAllKeys, classifyData, enhacement } from '../utills/account';
 @Injectable()
 export class AppService {
   CACHED_PARSED_EXCELS: Map<string,{
@@ -17,7 +18,10 @@ export class AppService {
     data: unknown[];
   }> = new Map();
 
-  constructor(private readonly s3Service: S3Service) {
+  constructor(
+    private readonly s3Service: S3Service,
+    private readonly configService: ConfigService
+  ) {
   }
 
   getData(): { message: string } {
@@ -93,10 +97,12 @@ export class AppService {
     }else{
       parsedExcel = await this.parseExcelFile(fileName);
     }
+
     if(parsedExcel && parsedExcel.data && parsedExcel.data.length > 0) return {
       mergedStructure,
-      mappedDocument: mapExcelValues(filteredData, parsedExcel.data[0])
+      mappedDocument: await mapExcelValues(filteredData, parsedExcel.data[0])
     };
+
     return {
       mergedStructure,
       mappedDocument: undefined
@@ -134,23 +140,28 @@ export class AppService {
       const startIndex = (currentPage - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedData = parsedExcel.data.slice(startIndex, endIndex);
-      console.log("headerInfo.inputDateFormat");
-      const documents = paginatedData.map((data: any) => {
-        const document: any = mapExcelValues(filteredData, data);
-        console.log("document");
-        
+      const documents = [];
+      for(let i=0; i < paginatedData.length; i++){
+        const document: any = await mapExcelValues(
+          filteredData, 
+          paginatedData[i], 
+          i < 3,
+          this.configService.get('OPEN_AI_KEY')
+        );
         document.id = uuid();
         document.addresses = document?.addresses?.map((address: any) => {
           address.id = uuid();
           return address;
         });
         const { error } = accountSchema.validate(document);
-        return {
+        documents.push({
           document,
           valid: !error,
           errors: error ? error.details: []
-        }
-      });
+        });
+      }
+      console.log(documents[0]);
+      
       return {
         mergedStructure,
         mappedDocuments: documents
@@ -214,7 +225,12 @@ function decodeArrays(obj: any) {
     }
   });
 }
-function mapExcelValues(headersInfo: any, parsedExcel: any) {
+async function mapExcelValues(
+  headersInfo: any, 
+  parsedExcel: any, 
+  advancedTRansform = false,
+  openaiKey?: string
+) {
   let result = {};
 
   for(let i = 0; i < headersInfo.length; i++){
@@ -244,12 +260,25 @@ function mapExcelValues(headersInfo: any, parsedExcel: any) {
     }
     const pobj = createNestedStructure(targetHeaderWithIndex,value);
     result = lodash.merge(result, pobj);
-  }
-  decodeArrays(result)
+  } 
+  decodeArrays(result);
   if(result['firstName'] && result['lastName']){
     result['fullName'] = `${result['firstName']} ${result['lastName']}`;
     delete result['firstName'];
     delete result['lastName'];
+  }
+  if(advancedTRansform && openaiKey){
+    const response = await classifyData(
+      openaiKey,
+      result
+    );
+    result['classification'] = response
+
+    const response2 = await enhacement(
+      openaiKey,
+      result
+    );
+    result = response2
   }
   return result;
 }

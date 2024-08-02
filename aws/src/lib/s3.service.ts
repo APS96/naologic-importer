@@ -1,14 +1,21 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { ConfigService } from "@nestjs/config";
 
 export class S3Service{
     client;
-    constructor(){
+    constructor(
+        private readonly configService: ConfigService
+    ){
+        console.log('Creating S3Service');
+        console.log(process.env['AWS_ACCESS_KEY_ID'] || '');
+        console.log(process.env['AWS_SECRET_ACCESS_KEY'] || '');
+        
         this.client = new S3Client({ 
             region: 'us-west-2',
             credentials:{
-                accessKeyId: 'AKIAU6GDZNW25ARJBWEF',
-                secretAccessKey: '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',
+                accessKeyId: process.env['AWS_ACCESS_KEY_ID'] || '',
+                secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY'] || '',
             }
         });
         console.log('S3Service created');
