@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { S3Service } from 'aws/src/lib/s3.service';
+import { getCountryISO3 } from "country-iso-2-to-3";
 import * as lodash from 'lodash';
+import moment from 'moment';
 import { v4 as uuid } from 'uuid';
 import * as XLSX from 'xlsx';
 import { accountSchema, calculateAllKeys } from '../utills/account';
@@ -132,10 +134,13 @@ export class AppService {
       const startIndex = (currentPage - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedData = parsedExcel.data.slice(startIndex, endIndex);
+      console.log("headerInfo.inputDateFormat");
       const documents = paginatedData.map((data: any) => {
         const document: any = mapExcelValues(filteredData, data);
+        console.log("document");
+        
         document.id = uuid();
-        document.addresses = document.addresses.map((address: any) => {
+        document.addresses = document?.addresses?.map((address: any) => {
           address.id = uuid();
           return address;
         });
@@ -211,14 +216,40 @@ function decodeArrays(obj: any) {
 }
 function mapExcelValues(headersInfo: any, parsedExcel: any) {
   let result = {};
+
   for(let i = 0; i < headersInfo.length; i++){
     const headerInfo = headersInfo[i];
     const indexMatch = headerInfo.inputHeader.match(/\.(\d+)\./);
     const arrayIndex = indexMatch ? parseInt(indexMatch[1], 10) : 0;
     const targetHeaderWithIndex = headerInfo.targetHeader.replace(/\[N\]/g, `[${arrayIndex}]`);
-    const pobj = createNestedStructure(targetHeaderWithIndex, parsedExcel[headerInfo.index]);
+    let value = parsedExcel[headerInfo.index];
+    if(headerInfo.inputHeaderType === 'date'){
+      const example = moment(value,headerInfo.inputDateFormat);
+      if(!example.isValid()){
+        value = 'invalid';
+      }else{
+        value = example.toISOString();
+      }
+    }
+    if(['country','language'].includes(headerInfo.inputHeader)){
+      const resISO3 = getCountryISO3(value);
+      if(resISO3) value = resISO3
+    }
+    if(headerInfo.inputHeaderType === 'number'){
+      if(isNaN(value)){
+        value = 'invalid';
+      }else{
+        value = parseFloat(value);
+      }
+    }
+    const pobj = createNestedStructure(targetHeaderWithIndex,value);
     result = lodash.merge(result, pobj);
   }
   decodeArrays(result)
+  if(result['firstName'] && result['lastName']){
+    result['fullName'] = `${result['firstName']} ${result['lastName']}`;
+    delete result['firstName'];
+    delete result['lastName'];
+  }
   return result;
 }

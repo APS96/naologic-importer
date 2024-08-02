@@ -11,6 +11,7 @@ export class AppController {
 
   @Get('generate-presigned-url')
   async getSignedUrl(
+    @Query('file-type') fileType: string,
     @Query('path') path: string,
   ) {
     try {
@@ -30,6 +31,7 @@ export class AppController {
   // MISSING: Check if the file is Excel
   @Get('download-presigned-url')
   async downloadSignedUrl(
+    @Query('file-type') fileType: string,
     @Query('path') path: string,
   ) {
     try {
@@ -48,6 +50,7 @@ export class AppController {
 
   @Get('parse-excel')
   async parseExcelFile(
+    @Query('file-type') fileType: string,
     @Query('file-name') fileName: string
   ){
     const result = await this.appService.parseExcelFile(fileName);
@@ -56,6 +59,7 @@ export class AppController {
 
   @Post('map-document-preview')
   async mapDocument(
+    @Query('file-type') fileType: string,
     @Query('file-name') fileName: string,
     @Body() body: {targetHeader: string, targetHeaderType:string,inputHeader: string}[]
   ){
@@ -64,6 +68,7 @@ export class AppController {
 
   @Post('validate-documents')
   async validateDocuments(
+    @Query('file-type') fileType: string,
     @Query('file-name') fileName: string,
     @Query('current-page') currentPage: string,
     @Query('page-size') pageSize: string,
